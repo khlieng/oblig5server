@@ -1,2 +1,2 @@
-oblig5server
-============
+Android Oblig 5 - Serversiden
+=============================
