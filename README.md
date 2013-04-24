@@ -1,2 +1,2 @@
-Android Oblig 5 - Serversiden
-=============================
+Android Oblig 5 - Server
+========================
