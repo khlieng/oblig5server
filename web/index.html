@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Android Oblig 5</title>
+    <link href='http://fonts.googleapis.com/css?family=Oswald:400,700|Open+Sans' rel='stylesheet' type='text/css'>
+    <style>
+    * {
+        margin: 0px;
+        padding: 0px;
+    }
+
+    body {
+        background: #222;
+    }
+
+    h1 {
+        font: 64px Oswald, sans-serif;
+        text-align: center;
+        margin-top: 50px;
+        color: #FFF;
+        -webkit-user-select: none;
+    }
+
+    p {
+        font: 16px Open Sans, sans-serif;
+        text-align: center;
+        color: #FFF;
+        margin: 20px;
+    }
+
+    #wrap {
+        width: 600px;
+        margin: 0 auto;
+    }
+
+    #chat {
+        margin: 0 auto;
+        width: 600px;
+        height: 400px;
+        overflow: auto;
+        background: #111;
+    }
+
+    #chat p {
+        text-align: left;
+    }
+
+    input {
+        width: 580px;
+        margin-top: 5px;
+        padding: 10px;
+        font: 16px Open Sans, sans-serif;
+        background: #111;
+        border: none;
+        color: #FFF;
+        outline: none;
+    }
+
+    #inputWrap {
+        text-align: center;
+    }
+
+    nav {
+        text-align: center;
+        margin: 20px;
+        margin-bottom: 30px;
+    }
+
+    li {
+        display: inline-block;
+    }
+
+    a {
+        color: #FFF;
+        text-decoration: none;
+        font: 16px Open Sans, sans-serif;
+        padding: 20px;
+        -webkit-user-select: none;
+    }
+
+    a:hover {
+        color: #7FB922;
+    }
+
+    .tab {
+        display: none;
+    }
+
+    #terminal {
+        display: block;
+    }
+
+    #brukerliste .col {
+        width: 200px;
+        display: inline-block;
+    }
+
+    #map {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: #222;
+        margin: 0px auto;
+        z-index: -1;
+    }
+
+    .dark {
+        color: #111;
+    }
+    </style>
+</head>
+<body>
+    <div id="wrap">
+        <h1>Android Oblig 5</h1>
+        <nav>
+            <ul>
+                <li><a href="#" id="to-terminal">Terminal</a></li>
+                <li><a href="#" id="to-brukerliste">Brukerliste</a></li>
+                <li><a href="#" id="to-map">Kart</a></li>
+            </ul>
+        </nav>
+    </div>
+    <div id="terminal" class="tab">            
+        <div id="chat"></div>
+        <div id="inputWrap"><input type="text" id="chatInput"></div>
+    </div>
+    <div id="brukerliste" class="tab"></div>
+    <div id="map" class="tab"></div>
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+    <script src="/socket.io.min.js"></script>
+    <script>
+    var mapsInit = false,
+        map,
+        markers,
+        users = {};
+
+    $(document).ready(function() {
+        var socket = io.connect("http://kenh.dyndns.org:8080/");
+        socket.on('connect', function() {
+            $("#chat").append("<p>Connected</p>");
+            socket.on('message', function(msg) {
+                processMessage(msg);
+            });
+        });
+
+        $.get("/android5/tomcat/users", function(res) {
+            var lines = res.split("\n");
+            lines.forEach(function(line) {
+                if (line != "") {
+                    var data = line.split("\t");
+                    addUser(data[0], data[1], data[2], data[3]);
+                }
+            });
+        });
+
+        $("#chatInput").keypress(function(event) {
+            if (event.which == 13 && $("#chatInput").val() != "") {
+                $.post("/android5/tomcat/send", { msg: $("#chatInput").val() });
+                $("#chatInput").val("");
+            }
+        });
+
+        $("a").click(function() {
+            if ($(this).attr("id").indexOf("to") == 0) {
+                $(".tab").hide();
+                var tab = $(this).attr("id").split("-")[1];
+                $("#" + tab).show();
+                
+                if (tab == "map") {
+                    if (!mapsInit) {
+                        mapsInit = true;
+                        initMaps();
+                    }
+                    $("nav a").addClass("dark");
+                    $("h1").addClass("dark");
+                }
+                else {
+                    $("nav a").removeClass("dark");
+                    $("h1").removeClass("dark");
+                }
+            }
+        });
+
+        var script = document.createElement("script");
+        script.src = "https://maps.googleapis.com/maps/api/js?key=AIzaSyB9PjmOCduDrB3cnksGzMpNCIYGZMKfsVU&sensor=false&callback=initMaps";
+        document.body.appendChild(script);
+    });
+
+    function initMaps() {
+        var options = {
+            center: new google.maps.LatLng(68.438, 17.427),
+            zoom: 12,
+            mapTypeId: google.maps.MapTypeId.ROADMAP,
+            disableDefaultUI: true,
+            zoomControl: true,
+            zoomControlOptions: {
+                style: google.maps.ZoomControlStyle.LARGE,
+                position: google.maps.ControlPosition.LEFT_CENTER
+            }
+        };
+        map = new google.maps.Map(document.getElementById("map"), options);
+
+        markers = {};
+    }
+
+    function addMarker(lat, lng, id, color, title) {
+        markers[id] = new google.maps.Marker({
+            position: new google.maps.LatLng(lat, lng),
+            icon: {
+                path: google.maps.SymbolPath.CIRCLE,
+                scale: 5,
+                strokeColor: color,
+                strokeWeight: 3
+            },
+            title: title,
+            map: map
+        });
+    }
+
+    function processMessage(message) {
+        var split = message.split(":");
+        switch (split[0]) {
+            case "msg":
+                var id = split[1];
+                if (id != -1) {
+                    println(users[id].name + ": " + stitch(split, 2), users[id].color);
+                }
+                else {
+                    println("web: " + stitch(split, 2));
+                }
+                break;
+
+            case "drop":
+                var id = split[1];
+                $("#user-" + id).remove();
+                println(users[id].name + "(" + id + ") unregistered", users[id].color);
+                delete users[id];
+                break;
+
+            case "reg":
+                addUser(split[1], split[2], "", split[3]);
+                println("User " + split[1] + ", " + split[2] + " registered");
+                break;
+
+            case "pos":
+                if (!(split[3] in markers)) {
+                    addMarker(split[1], split[2], split[3], split[4], "temp");
+                }
+                else {
+                    markers[split[3]].setPosition(new google.maps.LatLng(split[1], split[2]));
+                }
+                break;
+        }
+    }
+    function println(message) {
+        println(message, "255,255,255");
+    }
+
+    function println(message, color) {
+        $("#chat").append('<p style="color: rgba(' + color + ',1);">' + message + "</p>");
+        $("#chat").scrollTop($("#chat").prop("scrollHeight"));
+    }
+
+    function addUser(id, name, lastPos, color) {
+        $("#brukerliste").append('<p id="user-' + id + '"><span class="col">' + id + '</span><span class="col" style="color: rgba(' + color + ',1);">' + name + '</span><span class="col"><a href="#" id="del_' + id + '">Hiv ut!</a></span></p>');
+
+        users[id] = { id: id, name: name, lastpos: lastPos, color: color };
+
+        $("#del_" + id).click(function () {
+            $.post("/android5/tomcat/unregister", { id: $(this).attr("id").split("_")[1] });
+        });
+    }
+
+    function stitch(pieces, skip) {
+        return pieces.slice(skip, pieces.length).join(':');
+    }
+    </script>
+</body>
+</html>
