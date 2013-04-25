@@ -38,7 +38,6 @@ public class Users
 				return -2;
 			}
 		} catch (SQLException e) {
-			PostOffice.pushMessageWeb("msg:" + e.getMessage());
 			return -1;
 		}
 	}

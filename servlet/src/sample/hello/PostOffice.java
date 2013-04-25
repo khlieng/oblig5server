@@ -1,5 +1,6 @@
 package sample.hello;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -27,16 +28,17 @@ public class PostOffice {
 	public void register(@FormParam("regId") String gcmId, @FormParam("name") String name) {
 		User user = Users.get(gcmId);
 		if (user != null) {
-			Message msg = new Message.Builder().addData("id", user.getId() + "").build();
+			Message msg = new Message.Builder().addData("cmd", "id").addData("id", user.getId() + "").build();
 			pushMessageGCM(msg, gcmId);
 			pushMessageWeb("areg:" + user.getId());
 		}
 		else {
 			User newUser = new User(gcmId, name);
-			newUser.setColor(rand.nextInt(256) + "," + rand.nextInt(256) + "," + rand.nextInt(256));
+			int[] color = createColor();
+			newUser.setColor(color[0] + "," + color[1] + "," + color[2]);
 			
 			int id = Users.insert(newUser);
-			Message msg = new Message.Builder().addData("id", id + "").build();
+			Message msg = new Message.Builder().addData("cmd", "id").addData("id", id + "").build();
 			pushMessageGCM(msg, gcmId);
 			pushMessageWeb("reg:" + id + ":" + name + ":" + newUser.getColor());
 		}
@@ -57,6 +59,7 @@ public class PostOffice {
 		if (user != null) {
 			pushMessageWeb("msg:" + id + ":" + message);
 			Message msg = new Message.Builder()
+				.addData("cmd", "message")
 				.addData("snd", user.getName())
 				.addData("msg", message)
 				.addData("des", "Melding")
@@ -73,6 +76,7 @@ public class PostOffice {
 		else {
 			pushMessageWeb("msg:-1:" + message);
 			Message msg = new Message.Builder()
+				.addData("cmd", "message")
 				.addData("snd", "Web")
 				.addData("msg", message)
 				.addData("des", "Melding")
@@ -86,10 +90,15 @@ public class PostOffice {
 	public void updatePos(@FormParam("lat") String lat, @FormParam("lng") String lng, @FormParam("id") int id) {
 		User user = Users.get(id);
 		
-		Message msg = new Message.Builder().addData("pos", lat + "," + lng).addData("pclr", user.getColor()).build();
+		Message msg = new Message.Builder()
+			.addData("cmd", "pos")
+			.addData("lat", lat)
+			.addData("lng", lng)
+			.addData("id", id + "")
+			.addData("clr", user.getColor()).build();
 		pushMessageGCM(msg);
-		pushMessageWeb("pos:" + lat + ":" + lng + ":" + id + ":" + user.getColor());
-		pushMessageWeb("msg:" + lat + "," + lng + "," + id);
+		pushMessageWeb("pos:" + lat + ":" + lng + ":" + id + ":" + user.getColor() + ":" + user.getName());
+		pushMessageWeb("msg:-1:" + lat + "," + lng + "," + id);
 				
 		user.setLastPos(lat + "," + lng);
 		Users.update(user);
@@ -119,7 +128,7 @@ public class PostOffice {
 		Users.delete(id);
 	}
 	
-	public static void pushMessageWeb(String message) {
+	private void pushMessageWeb(String message) {
 		Map<String, String> params = new HashMap<String, String>();
 		params.put("msg", message);
 		HTTP.POST("http://localhost:3001/push", params);
@@ -134,19 +143,24 @@ public class PostOffice {
 		}
 	}
 	
-	private void pushMessageGCM(String message) {
-		Message msg = new Message.Builder().addData("msg", message).build();
-		pushMessageGCM(msg);
-	}
-	
 	private void pushMessageGCM(Message message, String id) {
 		try {
 			sender.send(message, id, 5);
 		} catch(Exception e) { }
 	}
 	
-	private void pushMessageGCM(String message, String id) {
-		Message msg = new Message.Builder().addData("msg", message).build();
-		pushMessageGCM(msg);
+	private int[] createColor() {
+		int[] c = new int[3];
+		boolean done = false;
+		while (!done) {
+			c[0] = rand.nextInt(256);
+			c[1] = rand.nextInt(256);
+			c[2] = rand.nextInt(256);
+			if (c[0] > 127 || c[1] > 127 || c[2] > 127) {
+				done = true;
+			}
+		}
+		return c;
+		
 	}
 }

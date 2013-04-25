@@ -15,8 +15,6 @@
 
     h1 {
         font: 64px Oswald, sans-serif;
-        text-align: center;
-        margin-top: 50px;
         color: #FFF;
         -webkit-user-select: none;
     }
@@ -29,8 +27,6 @@
     }
 
     #wrap {
-        width: 600px;
-        margin: 0 auto;
     }
 
     #chat {
@@ -97,12 +93,11 @@
 
     #map {
         position: absolute;
-        top: 0;
+        top: 100px;
         left: 0;
-        width: 100%;
-        height: 100%;
+        right: 0;
+        bottom: 0;
         background: #222;
-        margin: 0px auto;
         z-index: -1;
     }
 
@@ -173,8 +168,8 @@
                         mapsInit = true;
                         initMaps();
                     }
-                    $("nav a").addClass("dark");
-                    $("h1").addClass("dark");
+                    //$("nav a").addClass("dark");
+                    //$("h1").addClass("dark");
                 }
                 else {
                     $("nav a").removeClass("dark");
@@ -203,6 +198,9 @@
         map = new google.maps.Map(document.getElementById("map"), options);
 
         markers = {};
+        for (var id in users) {
+            updateMarker(users[id].lastpos.lat, users[id].lastpos.lng, id, "rgba("+users[id].color+",1)", users[id].name);
+        }
     }
 
     function addMarker(lat, lng, id, color, title) {
@@ -211,12 +209,23 @@
             icon: {
                 path: google.maps.SymbolPath.CIRCLE,
                 scale: 5,
-                strokeColor: color,
-                strokeWeight: 3
+                strokeColor: "#000",
+                strokeWeight: 3,
+                fillColor: color,
+                fillOpacity: 1.0
             },
             title: title,
             map: map
         });
+    }
+
+    function updateMarker(lat, lng, id, color, title) {
+        if (!(id in markers)) {
+            addMarker(lat, lng, id, color, title);
+        }
+        else {
+            markers[id].setPosition(new google.maps.LatLng(lat, lng));
+        }   
     }
 
     function processMessage(message) {
@@ -225,48 +234,59 @@
             case "msg":
                 var id = split[1];
                 if (id != -1) {
-                    println(users[id].name + ": " + stitch(split, 2), users[id].color);
+                    println(stitch(split, 2), users[id].color, users[id].name);
                 }
                 else {
-                    println("web: " + stitch(split, 2));
+                    println(stitch(split, 2), "255,255,255", "#");
                 }
                 break;
 
             case "drop":
                 var id = split[1];
                 $("#user-" + id).remove();
-                println(users[id].name + "(" + id + ") unregistered", users[id].color);
+                println("id " + id + " unregistered", users[id].color, users[id].name);
                 delete users[id];
                 break;
 
             case "reg":
+                var id = split[1];
                 addUser(split[1], split[2], "", split[3]);
-                println("User " + split[1] + ", " + split[2] + " registered");
+                println("id " + id + " registered", users[id].color, users[id].name);
                 break;
 
             case "pos":
-                if (!(split[3] in markers)) {
-                    addMarker(split[1], split[2], split[3], split[4], "temp");
-                }
-                else {
-                    markers[split[3]].setPosition(new google.maps.LatLng(split[1], split[2]));
-                }
+                var id = split[3];
+                users[id].lastpos = split[1] + "," + split[2];
+                $("#user-" + id + " .pos").html(Number(split[1]).toFixed(3) + ", " + Number(split[2]).toFixed(3));                
+                updateMarker(split[1], split[2], id, "rgba("+split[4]+",1)", split[5]);
                 break;
         }
     }
-    function println(message) {
-        println(message, "255,255,255");
-    }
 
-    function println(message, color) {
-        $("#chat").append('<p style="color: rgba(' + color + ',1);">' + message + "</p>");
+    function println(message, color, name) {
+        $("#chat").append('<p><span style="color: rgba(' + color + ',1);">' + name + "</span> " + message + "</p>");
         $("#chat").scrollTop($("#chat").prop("scrollHeight"));
     }
 
     function addUser(id, name, lastPos, color) {
-        $("#brukerliste").append('<p id="user-' + id + '"><span class="col">' + id + '</span><span class="col" style="color: rgba(' + color + ',1);">' + name + '</span><span class="col"><a href="#" id="del_' + id + '">Hiv ut!</a></span></p>');
+        var pos = lastPos.split(",");
+        var lat = 0;
+        var lng = 0;
+        if (pos.length > 1) {
+            lat = Number(pos[0]);
+            lng = Number(pos[1]);
+        }
 
-        users[id] = { id: id, name: name, lastpos: lastPos, color: color };
+        $("#brukerliste").append('<p id="user-' + id + '"><span class="col">' + id + '</span><span class="col" style="color: rgba(' + color + ',1);">' + name + '</span><span class="col pos">' + lat.toFixed(3) + ", " + lng.toFixed(3) + '</span><span class="col"><a href="#" id="del_' + id + '">Hiv ut!</a></span></p>');
+
+        users[id] = { 
+            id: id, 
+            name: name, 
+            lastpos: {
+                lat: lat,
+                lng: lng }, 
+            color: color 
+        };
 
         $("#del_" + id).click(function () {
             $.post("/android5/tomcat/unregister", { id: $(this).attr("id").split("_")[1] });
