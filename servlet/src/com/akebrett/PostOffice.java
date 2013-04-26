@@ -78,7 +78,9 @@ public class PostOffice {
 				.addData("cmd", "message")
 				.addData("snd", user.getName())
 				.addData("msg", message)
-				.addData("clr", user.getColor());;
+				.addData("clr", user.getColor());
+				
+			// Sjekker om meldingen er privat
 			if (receiver != null && !receiver.equals("")) {
 				User rcv = Users.getByName(receiver);
 				builder.addData("des", "1");
