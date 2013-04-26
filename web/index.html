@@ -14,52 +14,51 @@
     }
 
     h1 {
-        font: 64px Oswald, sans-serif;
+        font: 48px Oswald, sans-serif;
+        line-height: 100px;
+        margin-left: 20px;
         color: #FFF;
+        float: left;
         -webkit-user-select: none;
     }
 
     p {
         font: 16px Open Sans, sans-serif;
-        text-align: center;
         color: #FFF;
         margin: 20px;
     }
 
-    #wrap {
-    }
-
     #chat {
-        margin: 0 auto;
-        width: 600px;
-        height: 400px;
+        position: absolute;
+        top: 100px;
+        left: 0;
+        right: 0;
+        bottom: 50px;
         overflow: auto;
-        background: #111;
+        background: rgba(0,0,0,0.8);
     }
 
-    #chat p {
-        text-align: left;
+    #chatInput {
+        position: absolute;
+        height: 30px;
+        left: 0;
+        right: 0;
+        bottom: 0;
     }
 
     input {
-        width: 580px;
-        margin-top: 5px;
         padding: 10px;
         font: 16px Open Sans, sans-serif;
-        background: #111;
+        background: #222;
         border: none;
         color: #FFF;
         outline: none;
     }
 
-    #inputWrap {
-        text-align: center;
-    }
-
     nav {
-        text-align: center;
-        margin: 20px;
-        margin-bottom: 30px;
+        float: right;
+        line-height: 100px;
+        margin-right: 20px;
     }
 
     li {
@@ -82,8 +81,14 @@
         display: none;
     }
 
-    #terminal {
-        display: block;
+    #brukerliste {
+        position: absolute;
+        top: 100px;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        overflow: auto;
+        background: rgba(0,0,0,0.8);
     }
 
     #brukerliste .col {
@@ -119,10 +124,10 @@
     </div>
     <div id="terminal" class="tab">            
         <div id="chat"></div>
-        <div id="inputWrap"><input type="text" id="chatInput"></div>
+        <input type="text" id="chatInput">
     </div>
     <div id="brukerliste" class="tab"></div>
-    <div id="map" class="tab"></div>
+    <div id="map"></div>
     <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
     <script src="/socket.io.min.js"></script>
     <script>
@@ -148,6 +153,10 @@
                     addUser(data[0], data[1], data[2], data[3]);
                 }
             });
+
+            var script = document.createElement("script");
+            script.src = "https://maps.googleapis.com/maps/api/js?key=AIzaSyB9PjmOCduDrB3cnksGzMpNCIYGZMKfsVU&sensor=false&callback=initMaps";
+            document.body.appendChild(script);
         });
 
         $("#chatInput").keypress(function(event) {
@@ -162,25 +171,8 @@
                 $(".tab").hide();
                 var tab = $(this).attr("id").split("-")[1];
                 $("#" + tab).show();
-                
-                if (tab == "map") {
-                    if (!mapsInit) {
-                        mapsInit = true;
-                        initMaps();
-                    }
-                    //$("nav a").addClass("dark");
-                    //$("h1").addClass("dark");
-                }
-                else {
-                    $("nav a").removeClass("dark");
-                    $("h1").removeClass("dark");
-                }
             }
         });
-
-        var script = document.createElement("script");
-        script.src = "https://maps.googleapis.com/maps/api/js?key=AIzaSyB9PjmOCduDrB3cnksGzMpNCIYGZMKfsVU&sensor=false&callback=initMaps";
-        document.body.appendChild(script);
     });
 
     function initMaps() {
@@ -228,6 +220,11 @@
         }   
     }
 
+    function removeMarker(id) {
+        markers[id].setMap(null);
+        delete markers[id];
+    }
+
     function processMessage(message) {
         var split = message.split(":");
         switch (split[0]) {
@@ -244,6 +241,7 @@
             case "drop":
                 var id = split[1];
                 $("#user-" + id).remove();
+                removeMarker(id);
                 println("id " + id + " unregistered", users[id].color, users[id].name);
                 delete users[id];
                 break;

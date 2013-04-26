@@ -1,12 +1,10 @@
 package sample.hello;
 
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
 
-import javax.ws.rs.DefaultValue;
 import javax.ws.rs.FormParam;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
@@ -62,7 +60,7 @@ public class PostOffice {
 				.addData("cmd", "message")
 				.addData("snd", user.getName())
 				.addData("msg", message)
-				.addData("des", "Melding")
+				.addData("des", "1")
 				.addData("clr", user.getColor()).build();
 			if (receiver != null && !receiver.equals("")) {
 				User rcv = Users.getByName(receiver);
@@ -79,7 +77,7 @@ public class PostOffice {
 				.addData("cmd", "message")
 				.addData("snd", "Web")
 				.addData("msg", message)
-				.addData("des", "Melding")
+				.addData("des", "2")
 				.addData("clr", "0,0,0").build();
 			pushMessageGCM(msg);
 		}
