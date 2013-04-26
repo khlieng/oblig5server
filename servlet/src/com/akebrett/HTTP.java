@@ -1,4 +1,4 @@
-package sample.hello;
+package com.akebrett;
 
 import java.io.BufferedInputStream;
 import java.io.IOException;

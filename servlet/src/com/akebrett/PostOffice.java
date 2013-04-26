@@ -1,4 +1,4 @@
-package sample.hello;
+package com.akebrett;
 
 import java.util.HashMap;
 import java.util.List;
@@ -21,6 +21,9 @@ public class PostOffice {
 	private static final Sender sender = new Sender(API_KEY);
 	private static Random rand = new Random();
 
+	//
+	// Registrerer bruker, putter den i databasen og sender en id tilbake
+	//
 	@Path("/register")
 	@POST
 	public void register(@FormParam("regId") String gcmId, @FormParam("name") String name) {
@@ -35,42 +38,58 @@ public class PostOffice {
 			int[] color = createColor();
 			newUser.setColor(color[0] + "," + color[1] + "," + color[2]);
 			
+			// Putter brukeren i databasen og sender iden tilbake
 			int id = Users.insert(newUser);
 			Message msg = new Message.Builder().addData("cmd", "id").addData("id", id + "").build();
 			pushMessageGCM(msg, gcmId);
+			
+			// Forteller alle om den nye brukeren
+			Message msgNew = new Message.Builder()
+				.addData("cmd", "new")
+				.addData("id", id + "")
+				.addData("name", name).build();
+			pushMessageGCM(msgNew);
+			
 			pushMessageWeb("reg:" + id + ":" + name + ":" + newUser.getColor());
 		}
 	}
 	
+	//
+	// Avregistrerer bruker
+	//
 	@Path("/unregister")
 	@POST
 	public void unregister(@FormParam("id") int id) {
 		dropUser(id);
 	}
 	
+	//
+	// Tar imot en melding og sender den videre dit den skal
+	//
 	@Path("/send")
 	@POST
 	public void sendMessage(@FormParam("msg") String message, @FormParam("id") int id, @FormParam("rcv") String receiver) {
 		User user = Users.get(id);
 		
-		// Fra android
+		// Meldingen kommer fra android
 		if (user != null) {
 			pushMessageWeb("msg:" + id + ":" + message);
-			Message msg = new Message.Builder()
+			Message.Builder builder = new Message.Builder()
 				.addData("cmd", "message")
 				.addData("snd", user.getName())
 				.addData("msg", message)
-				.addData("des", "1")
-				.addData("clr", user.getColor()).build();
+				.addData("clr", user.getColor());;
 			if (receiver != null && !receiver.equals("")) {
 				User rcv = Users.getByName(receiver);
-				pushMessageGCM(msg, rcv.getGcmId());
+				builder.addData("des", "1");
+				pushMessageGCM(builder.build(), rcv.getGcmId());
 			}
 			else {
-				pushMessageGCM(msg);
+				builder.addData("des", "2");
+				pushMessageGCM(builder.build());
 			}
 		}
-		// Fra web
+		// Meldingen kommer fra web
 		else {
 			pushMessageWeb("msg:-1:" + message);
 			Message msg = new Message.Builder()
@@ -83,6 +102,9 @@ public class PostOffice {
 		}
 	}
 	
+	//
+	// Tar imot en posisjonsoppdatering og sender den videre til alle
+	//
 	@Path("/pos")
 	@POST
 	public void updatePos(@FormParam("lat") String lat, @FormParam("lng") String lng, @FormParam("id") int id) {
@@ -102,6 +124,9 @@ public class PostOffice {
 		Users.update(user);
 	}
 	
+	//
+	// Sender tilbake en tabseparert liste over registrerte brukere
+	//
 	@Path("/users")
 	@GET
 	@Produces(MediaType.TEXT_PLAIN)
@@ -119,19 +144,34 @@ public class PostOffice {
 		return result.toString();
 	}
 	
+	//
+	// Fjerner brukeren fra databasen og sender en melding til alle om det
+	//
 	private void dropUser(int id) {
-		Message msg = new Message.Builder().addData("cmd", "drop").addData("id", id + "").build();
+		User user = Users.get(id);
+		
+		Message msg = new Message.Builder()
+			.addData("cmd", "drop")
+			.addData("id", id + "")
+			.addData("name", user.getName()).build();
 		pushMessageGCM(msg);
 		pushMessageWeb("drop:" + id);
+		
 		Users.delete(id);
 	}
 	
+	//
+	// Skyver meldingen til alle webklienter
+	//
 	private void pushMessageWeb(String message) {
 		Map<String, String> params = new HashMap<String, String>();
 		params.put("msg", message);
 		HTTP.POST("http://localhost:3001/push", params);
 	}
 	
+	//
+	// Skyver meldingen til alle GCM-klienter
+	//
 	private void pushMessageGCM(Message message) {
 		List<String> gcmIds = Users.getGcmIds();
 		if (gcmIds.size() > 0) {
@@ -141,6 +181,9 @@ public class PostOffice {
 		}
 	}
 	
+	//
+	// Skyver meldingen til den spesifisert GCM-klienten
+	//
 	private void pushMessageGCM(Message message, String id) {
 		try {
 			sender.send(message, id, 5);
@@ -154,11 +197,12 @@ public class PostOffice {
 			c[0] = rand.nextInt(256);
 			c[1] = rand.nextInt(256);
 			c[2] = rand.nextInt(256);
+			
+			// Sjekke at fargen ikke er for mørk
 			if (c[0] > 127 || c[1] > 127 || c[2] > 127) {
 				done = true;
 			}
 		}
-		return c;
-		
+		return c;		
 	}
 }

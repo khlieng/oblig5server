@@ -1,4 +1,4 @@
-package sample.hello;
+package com.akebrett;
 
 import java.sql.Connection;
 import java.sql.DriverManager;

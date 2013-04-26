@@ -1,4 +1,4 @@
-package sample.hello;
+package com.akebrett;
 
 import javax.servlet.ServletContextEvent;
 import javax.servlet.ServletContextListener;
@@ -6,7 +6,7 @@ import javax.servlet.ServletContextListener;
 public class ServletContext implements ServletContextListener {
 	@Override
 	public void contextInitialized(ServletContextEvent event) {
-		Users.connect("localhost/oblig5", "root", "");
+		Users.connect("localhost/oblig5", "root", ""); // :)
 	}
 	
 	@Override

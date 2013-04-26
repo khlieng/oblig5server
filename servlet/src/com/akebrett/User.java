@@ -1,4 +1,4 @@
-package sample.hello;
+package com.akebrett;
 
 public class User {
 	private int id;
