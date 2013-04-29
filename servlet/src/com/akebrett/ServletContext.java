@@ -11,6 +11,6 @@ public class ServletContext implements ServletContextListener {
 	
 	@Override
 	public void contextDestroyed(ServletContextEvent event) {
-		
+		Users.disconnect();
 	}
 }

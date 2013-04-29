@@ -111,19 +111,21 @@ public class PostOffice {
 	@POST
 	public void updatePos(@FormParam("lat") String lat, @FormParam("lng") String lng, @FormParam("id") int id) {
 		User user = Users.get(id);
-		
-		Message msg = new Message.Builder()
-			.addData("cmd", "pos")
-			.addData("lat", lat)
-			.addData("lng", lng)
-			.addData("id", id + "")
-			.addData("clr", user.getColor()).build();
-		pushMessageGCM(msg);
-		pushMessageWeb("pos:" + lat + ":" + lng + ":" + id + ":" + user.getColor() + ":" + user.getName());
-		pushMessageWeb("msg:-1:" + lat + "," + lng + "," + id);
-				
-		user.setLastPos(lat + "," + lng);
-		Users.update(user);
+
+		if (user != null) {
+			Message msg = new Message.Builder()
+				.addData("cmd", "pos")
+				.addData("lat", lat)
+				.addData("lng", lng)
+				.addData("id", id + "")
+				.addData("clr", user.getColor()).build();
+			pushMessageGCM(msg);
+			pushMessageWeb("pos:" + lat + ":" + lng + ":" + id + ":" + user.getColor() + ":" + user.getName());
+			pushMessageWeb("msg:-1:" + lat + "," + lng + "," + id);
+					
+			user.setLastPos(lat + "," + lng);
+			Users.update(user);
+		}
 	}
 	
 	//
@@ -151,15 +153,17 @@ public class PostOffice {
 	//
 	private void dropUser(int id) {
 		User user = Users.get(id);
-		
-		Message msg = new Message.Builder()
-			.addData("cmd", "drop")
-			.addData("id", id + "")
-			.addData("name", user.getName()).build();
-		pushMessageGCM(msg);
-		pushMessageWeb("drop:" + id);
-		
-		Users.delete(id);
+
+		if (user != null) {
+			Message msg = new Message.Builder()
+				.addData("cmd", "drop")
+				.addData("id", id + "")
+				.addData("name", user.getName()).build();
+			pushMessageGCM(msg);
+			pushMessageWeb("drop:" + id);
+			
+			Users.delete(id);
+		}
 	}
 	
 	//

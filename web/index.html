@@ -221,8 +221,10 @@
     }
 
     function removeMarker(id) {
-        markers[id].setMap(null);
-        delete markers[id];
+        if (id in markers) {
+            markers[id].setMap(null);
+            delete markers[id];
+        }
     }
 
     function processMessage(message) {
