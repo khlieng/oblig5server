@@ -1,36 +1,45 @@
 package com.akebrett;
 
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.mchange.v2.c3p0.ComboPooledDataSource;
+import com.mchange.v2.c3p0.DataSources;
+
 public class Users
 {
-	private static Connection conn;
+	private static ComboPooledDataSource ds;
 
 	public static void connect(String url, String username, String password) {
 		try {
-			Class.forName("com.mysql.jdbc.Driver");
-			conn = DriverManager.getConnection("jdbc:mysql://" + url, username, password);
+			ds = new ComboPooledDataSource();
+			ds.setDriverClass("com.mysql.jdbc.Driver");
+			ds.setJdbcUrl("jdbc:mysql://" + url);
+			ds.setUser(username);
+			ds.setPassword(password);
 		} catch(Exception e) { }
 	}
 
 	public static void disconnect() {
 		try {
-			conn.close();
+			DataSources.destroy(ds);
 		} catch(Exception e) { }
 	}
 
 	public static int insert(User user) {
+		Connection conn = null;
+		Statement statement = null;
+		ResultSet keys = null;
 		try {
-			Statement statement = conn.createStatement();
+			conn = ds.getConnection();
+			statement = conn.createStatement();
 			statement.executeUpdate("INSERT INTO reg (gcmid, name, color) VALUES ('" + 
 					user.getGcmId() + "','" + user.getName() + "','" + user.getColor() + "')", Statement.RETURN_GENERATED_KEYS);
-			ResultSet keys = statement.getGeneratedKeys();
+			keys = statement.getGeneratedKeys();
 			if (keys.next()) {
 				return keys.getInt(1);
 			}
@@ -39,22 +48,55 @@ public class Users
 			}
 		} catch (SQLException e) {
 			return -1;
+		} finally {
+			try {
+				if (keys != null) keys.close();
+				if (statement != null) statement.close();
+				if (conn != null) conn.close();
+			} catch (SQLException ex) { }
 		}
 	}
 	
 	public static void update(User user) {
+		Connection conn = null;
+		Statement statement = null;
 		try {
-			conn.createStatement().executeUpdate("UPDATE reg SET gcmid='" + user.getGcmId() + 
+			conn = ds.getConnection();
+			statement = conn.createStatement();
+			statement.executeUpdate("UPDATE reg SET gcmid='" + user.getGcmId() + 
 					"', name='" + user.getName() + "', lastpos='" + user.getlastPos() + "', color='" + user.getColor() + "' WHERE id=" + user.getId());
-		} catch (SQLException e) { }
+		} catch (SQLException e) {			
+		} finally {
+			try {
+				if (statement != null) statement.close();
+				if (conn != null) conn.close();
+			} catch (SQLException ex) { }
+		}
 	}
 	
 	public static User get(int id) {
+		return query("SELECT * FROM reg WHERE id=" + id);
+	}
+	
+	public static User get(String gcmId) {
+		return query("SELECT * FROM reg WHERE gcmid='" + gcmId + "'");
+	}
+	
+	public static User getByName(String name) {
+		return query("SELECT * FROM reg WHERE name='" + name + "'");
+	}
+		
+	private static User query(String sql) {
+		Connection conn = null;
+		Statement statement = null;
+		ResultSet result = null;
 		try {
-			ResultSet result = conn.createStatement().executeQuery("SELECT * FROM reg WHERE id=" + id);
+			conn = ds.getConnection();
+			statement = conn.createStatement();
+			result = statement.executeQuery(sql);
 			if (result.next()) {
 				User user = new User(result.getString("gcmid"), result.getString("name"));
-				user.setId(id);
+				user.setId(result.getInt("id"));
 				user.setLastPos(result.getString("lastpos"));
 				user.setColor(result.getString("color"));
 				return user;
@@ -64,49 +106,25 @@ public class Users
 			}
 		} catch (SQLException e) { 
 			return null;
-		}
-	}
-	
-	public static User get(String gcmId) {
-		try {
-			ResultSet result = conn.createStatement().executeQuery("SELECT * FROM reg WHERE gcmid='" + gcmId + "'");
-			if (result.next()) {
-				User user = new User(gcmId, result.getString("name"));
-				user.setId(result.getInt("id"));
-				user.setLastPos(result.getString("lastpos"));
-				user.setColor(result.getString("color"));
-				return user;
-			}
-			else {
-				return null;
-			}
-		} catch (SQLException e) {
-			return null;
-		}
-	}
-	
-	public static User getByName(String name) {
-		try {
-			ResultSet result = conn.createStatement().executeQuery("SELECT * FROM reg WHERE name='" + name + "'");
-			if (result.next()) {
-				User user = new User(result.getString("gcmId"), name);
-				user.setId(result.getInt("id"));
-				user.setLastPos(result.getString("lastpos"));
-				user.setColor(result.getString("color"));
-				return user;
-			}
-			else {
-				return null;
-			}
-		} catch (SQLException e) {
-			return null;
+		} finally {
+			try {
+				if (result != null) result.close();
+				if (statement != null) statement.close();
+				if (conn != null) conn.close();
+			} catch (SQLException ex) { }
 		}
 	}
 	
 	public static List<User> getAll() {
+		Connection conn = null;
+		Statement statement = null;
+		ResultSet result = null;
 		try {
+			conn = ds.getConnection();
+			statement = conn.createStatement();
+			result = statement.executeQuery("SELECT * FROM reg");
+			
 			List<User> users = new ArrayList<User>();
-			ResultSet result = conn.createStatement().executeQuery("SELECT * FROM reg");
 			while (result.next()) {
 				User user = new User(result.getString("gcmid"), result.getString("name"));
 				user.setId(result.getInt("id"));
@@ -117,25 +135,53 @@ public class Users
 			return users;
 		} catch (SQLException e) { 
 			return new ArrayList<User>();
+		} finally {
+			try {
+				if (result != null) result.close();
+				if (statement != null) statement.close();
+				if (conn != null) conn.close();
+			} catch (SQLException ex) { }
 		}
 	}
 	
 	public static List<String> getGcmIds() {
+		Connection conn = null;
+		Statement statement = null;
+		ResultSet result = null;
 		try {
+			conn = ds.getConnection();
+			statement = conn.createStatement();
+			result = statement.executeQuery("SELECT gcmid FROM reg");
+			
 			List<String> ids = new ArrayList<String>();
-			ResultSet result = conn.createStatement().executeQuery("SELECT gcmid FROM reg");
 			while (result.next()) {
 				ids.add(result.getString("gcmid"));
 			}
 			return ids;
 		} catch (SQLException e) {
 			return new ArrayList<String>();
+		} finally {
+			try {
+				if (result != null) result.close();
+				if (statement != null) statement.close();
+				if (conn != null) conn.close();
+			} catch (SQLException ex) { }
 		}
 	}
 	
 	public static void delete(int id) {
+		Connection conn = null;
+		Statement statement = null;
 		try {
-			conn.createStatement().executeUpdate("DELETE FROM reg WHERE id=" + id);
-		} catch (SQLException e) { }
+			conn = ds.getConnection();
+			statement = conn.createStatement();
+			statement.executeUpdate("DELETE FROM reg WHERE id=" + id);
+		} catch (SQLException e) { 
+		} finally {
+			try {
+				if (statement != null) statement.close();
+				if (conn != null) conn.close();
+			} catch (SQLException ex) { }
+		}
 	}
 }
